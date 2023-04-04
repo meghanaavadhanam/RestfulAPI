@@ -13,7 +13,7 @@ cache_arr = []
 conn = pymysql.connect(
         host='localhost',
         user='root',
-        password = "Teradata900..",
+        password = "",
         db='guid',
         )
 cur = conn.cursor()
@@ -34,7 +34,10 @@ def create_guid(guid_id='None'):
     
     creation_time = str(int(time.time()))
     expiration_time = request.json.get('expiry')
-    if expiration_time == None:
+    if expiration_time != None:
+        if not (int(expiration_time) >= (int(time.time()) + (30 * 24 * 60 * 60))):
+            return jsonify({"error":"invalid expiration time"})
+    elif expiration_time == None:
         expiration_time = str(int(time.time()) + (30 * 24 * 60 * 60)) # 30 days expiration time if validity is not provided 
     user = request.json.get('user')
     sql = "insert into guid_details values ('" + guid_id + "','" + user + "','" + creation_time + "','" + expiration_time + "')"
