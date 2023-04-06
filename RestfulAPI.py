@@ -13,7 +13,7 @@ cache_arr = []
 conn = pymysql.connect(
         host='localhost',
         user='root',
-        password = "",
+        password = "Teradata900..",
         db='guid',
         )
 cur = conn.cursor()
@@ -44,10 +44,10 @@ def create_guid(guid_id='None'):
     cur.execute(sql)
     conn.commit()
     
-    # sending the created record into cache in the form of a hash set
+    # sending the recently created guid into cache
     
-    mydict = {"guid_id" : guid_id, "user" : user, "expiry_date": expiration_time}
-    cache.hset("key_0", mapping = mydict)
+    #mydict = {"guid_id" : guid_id, "user" : user, "expiry_date": expiration_time}
+    cache.set(guid_id, user, 100000) # ~1.15 day
    
     return jsonify(
         {'GUID': guid_id, 'creation_time': creation_time, 'expiration_time': expiration_time, 'user': user})
@@ -60,28 +60,30 @@ def create_guid(guid_id='None'):
 @app.route('/guids/<guid_id>', methods=['GET'])
 def get_guid(guid_id):
     
-    read_dict = cache.hget("key_0", "guid_id")
-    print(read_dict.decode('utf-8')) 
-    check_guid = read_dict.decode('utf-8') # checking if GUID is present in cache
-    if guid_id == check_guid:
-        guid = cache.hget("key_0", "guid_id").decode('utf-8')
-        user = cache.hget("key_0", "user").decode('utf-8')
-        expiry = cache.hget("key_0", "expiry_date").decode('utf-8')
-        return jsonify({"cache data": {"guid": guid, "user" : user, "expiry_date" : expiry}})
+    # checking if GUID is present in cache
+    if cache.get(guid_id):
+        
+        read_from_cache = cache.get(guid_id).decode("utf-8")
+       
+        print(cache.ttl(read_from_cache))
+        return jsonify({"cache data": {"guid": guid_id, "user" : read_from_cache}})
+
 
     # reading from database, if not present in cache
-    sql = "select user, expiry_date, guid from guid_details where guid ='"+guid_id+"'"
-    currenttime = int(time.time())
-    count = cur.execute(sql)
-    if count ==1 :
-        result = cur.fetchall()
-        for iterator in result:
-            if currenttime < int(iterator[1]):
-                return jsonify({'guid':guid_id,'Expiry':iterator[1],'user':iterator[0]}) # returning the guid, user and expiry date data
-            else:
-                return jsonify({'guid': guid_id, 'Expiry': 'Expired', 'user': iterator[0]}) # returning expired if expired
+
     else:
-        return jsonify({'error':'GUID not found'})
+        sql = "select user, expiry_date, guid from guid_details where guid ='"+guid_id+"'"
+        currenttime = int(time.time())
+        flag = cur.execute(sql)
+        if flag == 1 :
+            result = cur.fetchall()
+            for iterator in result:
+                if currenttime < int(iterator[1]):
+                    return jsonify({'guid':guid_id,'Expiry':iterator[1],'user':iterator[0]}) # returning the guid, user and expiry date data
+                else:
+                    return jsonify({'guid': guid_id, 'Expiry -m': 'Expired', 'user': iterator[0]}) # returning expired if expired
+    
+    return jsonify({'error':'GUID not found'})
 
 # PUT /guids/<guid_id>
 # This endpoint updates the expiration time of the specified GUID in the MySQL database and updates the Redis cache accordingly.
