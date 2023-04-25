@@ -9,7 +9,7 @@ import json
 
 app = Flask(__name__)
 cache = redis.Redis(host='localhost', port=6379)
-cache_arr = []
+cache.flushdb()
 conn = pymysql.connect(
         host='localhost',
         user='root',
@@ -81,7 +81,7 @@ def get_guid(guid_id):
                 if currenttime < int(iterator[1]):
                     return jsonify({'guid':guid_id,'Expiry':iterator[1],'user':iterator[0]}) # returning the guid, user and expiry date data
                 else:
-                    return jsonify({'guid': guid_id, 'Expiry -m': 'Expired', 'user': iterator[0]}) # returning expired if expired
+                    return jsonify({'guid': guid_id, 'Expiry': 'Expired', 'user': iterator[0]}) # returning expired if expired
     
     return jsonify({'error':'GUID not found'})
 
@@ -97,17 +97,18 @@ def update_guid(guid_id):
     
     check_sql = "select user from guid_details where guid ='"+guid_id+"'"
     count = cur.execute(check_sql)
-    if count == 1:
+    print(count)
+    if count:
         for iterator in cur.fetchall():
             user = iterator[0]
         update_sql = "update guid_details set expiry_date = '"+expiration_time+"' where guid='"+guid_id+"'"
         result = cur.execute(update_sql)
-        if result == 1:
+        if result:
 
             mydict = {"guid_id" : guid_id, "user" : user, "expiry_date": expiration_time}
             cache.hset("key", mapping = mydict)
             conn.commit()
-            #cache.hmset(guid_id, guid)
+
             return jsonify(
                 {'GUID': guid_id, 'expiration_time': expiration_time, 'user':user})
     else:
