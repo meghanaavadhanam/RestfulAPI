@@ -46,7 +46,6 @@ def create_guid(guid_id='None'):
     
     # sending the recently created guid into cache
     
-    #mydict = {"guid_id" : guid_id, "user" : user, "expiry_date": expiration_time}
     cache.set(guid_id, user, 100000) # ~1.15 day
    
     return jsonify(
@@ -94,6 +93,8 @@ def update_guid(guid_id):
         return jsonify({"Error":"Invalid GUID"})
     
     expiration_time = request.json.get('expiry')
+    if not (int(expiration_time) >= (int(time.time()) + (30 * 24 * 60 * 60))):
+        return jsonify({"error":"invalid expiration time"})
     
     check_sql = "select user from guid_details where guid ='"+guid_id+"'"
     count = cur.execute(check_sql)
